@@ -64,7 +64,7 @@ export default function DashboardPage() {
   const fetchUserProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:3001/users/profile', {
+      const response = await fetch('https://socialgaming-production.up.railway.app/users/profile', {
         headers: {
           Authorization: token || '',
         },
@@ -88,7 +88,7 @@ export default function DashboardPage() {
     try {
       setIsSearching(true);
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:3001/users/search?search=${searchQuery}`, {
+      const response = await fetch(`https://socialgaming-production.up.railway.app/users/search?search=${searchQuery}`, {
         headers: {
           Authorization: token || '',
         },

@@ -54,7 +54,7 @@ export default function PostFeed() {
   const fetchPosts = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:3001/post/forYouPage', {
+      const response = await fetch('https://socialgaming-production.up.railway.app/post/forYouPage', {
         headers: {
           'Authorization': token || '',
         },

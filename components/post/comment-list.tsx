@@ -84,7 +84,7 @@ export default function CommentList({ postId, onCommentAdded, initialComments = 
             else setLoadingMore(true);
 
             const token = localStorage.getItem('token');
-            const response = await fetch(`http://localhost:3001/post/${postId}/comment?page=${pageNum}`, {
+            const response = await fetch(`https://socialgaming-production.up.railway.app/post/${postId}/comment?page=${pageNum}`, {
                 headers: { 'Authorization': token || '' },
             });
 
@@ -176,7 +176,7 @@ export default function CommentList({ postId, onCommentAdded, initialComments = 
 
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`http://localhost:3001/post/${postId}/comment/likeUnlike/${commentId}`, {
+            const response = await fetch(`https://socialgaming-production.up.railway.app/post/${postId}/comment/likeUnlike/${commentId}`, {
                 method: 'PATCH',
                 headers: { 'Authorization': token || '' },
             });
@@ -246,7 +246,7 @@ export default function CommentList({ postId, onCommentAdded, initialComments = 
     const fetchReplies = async (commentId: string) => {
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`http://localhost:3001/post/${postId}/comment/replies/${commentId}`, {
+            const response = await fetch(`https://socialgaming-production.up.railway.app/post/${postId}/comment/replies/${commentId}`, {
                 headers: { 'Authorization': token || '' },
             });
 

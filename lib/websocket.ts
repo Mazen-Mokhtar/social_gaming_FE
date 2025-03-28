@@ -47,7 +47,7 @@ const initializeSocket = (): Socket => {
   const token = localStorage.getItem('token');
   if (!token) throw new Error('No token found');
 
-  const newSocket = io('http://localhost:3001', {
+  const newSocket = io('https://socialgaming-production.up.railway.app', {
     auth: { token },
     transports: ['websocket'],
     reconnection: true,

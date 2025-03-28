@@ -34,7 +34,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       // Don't fetch notification count if on notifications page
       if (pathname !== '/dashboard/notifications') {
-        const notifResponse = await fetch('http://localhost:3001/notification/count', { headers });
+        const notifResponse = await fetch('https://socialgaming-production.up.railway.app/notification/count', { headers });
         const notifData = await notifResponse.json();
         if (notifData.success) {
           setNotificationCount(notifData.data);
@@ -45,7 +45,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       // Don't fetch friend request count if on friends page
       if (pathname !== '/dashboard/friends') {
-        const friendResponse = await fetch('http://localhost:3001/friend/getCountRequest', { headers });
+        const friendResponse = await fetch('https://socialgaming-production.up.railway.app/friend/getCountRequest', { headers });
         const friendData = await friendResponse.json();
         if (friendData.success) {
           setFriendRequestCount(friendData.data);

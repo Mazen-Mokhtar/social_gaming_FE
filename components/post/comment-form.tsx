@@ -51,8 +51,8 @@ export default function CommentForm({ postId, parentId, onCommentAdded, classNam
 
       const token = localStorage.getItem('token');
       const url = parentId 
-        ? `http://localhost:3001/post/${postId}/comment/${parentId}`
-        : `http://localhost:3001/post/${postId}/comment`;
+        ? `https://socialgaming-production.up.railway.app/post/${postId}/comment/${parentId}`
+        : `https://socialgaming-production.up.railway.app/post/${postId}/comment`;
 
       const response = await fetch(url, {
         method: 'POST',

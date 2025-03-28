@@ -94,7 +94,7 @@ export default function PostCard({ post, onPostUpdate }: PostCardProps) {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:3001/post/likeUnLike-post/${post._id}`, {
+      const response = await fetch(`https://socialgaming-production.up.railway.app/post/likeUnLike-post/${post._id}`, {
         method: 'POST',
         headers: {
           'Authorization': token || '',
@@ -125,7 +125,7 @@ export default function PostCard({ post, onPostUpdate }: PostCardProps) {
   const handleDelete = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:3001/post/delete/${post._id}`, {
+      const response = await fetch(`https://socialgaming-production.up.railway.app/post/delete/${post._id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': token || '',

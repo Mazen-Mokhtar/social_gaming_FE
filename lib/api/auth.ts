@@ -2,7 +2,7 @@ import axios from 'axios';
 import jwtDecode from 'jwt-decode';
 
 const api = axios.create({
-  baseURL: 'http://localhost:3001',
+  baseURL: 'https://socialgaming-production.up.railway.app',
   headers: {
     'Content-Type': 'application/json',
   },

@@ -47,15 +47,15 @@ export default function FriendsPage() {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  const getUserId = (): string | null => {
+  const getUserId = (): string | undefined => {
     const token = localStorage.getItem('token')?.split(' ')[1];
-    if (!token) return null;
+    if (!token) return undefined;
     try {
       const decoded: TokenPayload = jwtDecode(token);
       return decoded.userId;
     } catch (error) {
       console.error('Error decoding token:', error);
-      return null;
+      return undefined;
     }
   };
 
@@ -68,7 +68,7 @@ export default function FriendsPage() {
   const fetchFriends = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:3001/friend/get-friends', {
+      const response = await fetch('https://socialgaming-production.up.railway.app/friend/get-friends', {
         headers: {
           Authorization: token || '',
         },
@@ -89,7 +89,7 @@ export default function FriendsPage() {
   const handleCancelFriendship = async (userId: string) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:3001/friend/cancel-friend/${userId}`, {
+      const response = await fetch(`https://socialgaming-production.up.railway.app/friend/cancel-friend/${userId}`, {
         method: 'DELETE',
         headers: {
           Authorization: token || '',
@@ -117,7 +117,7 @@ export default function FriendsPage() {
   const fetchFriendRequests = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:3001/friend/get-friends-requset', {
+      const response = await fetch('https://socialgaming-production.up.railway.app/friend/get-friends-requset', {
         headers: {
           Authorization: token || '',
         },
@@ -134,7 +134,7 @@ export default function FriendsPage() {
   const fetchSuggestions = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:3001/friend/suggestions', {
+      const response = await fetch('https://socialgaming-production.up.railway.app/friend/suggestions', {
         headers: {
           Authorization: token || '',
         },
@@ -154,7 +154,7 @@ export default function FriendsPage() {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:3001/friend/search?search=${searchQuery}`, {
+      const response = await fetch(`https://socialgaming-production.up.railway.app/friend/search?search=${searchQuery}`, {
         headers: {
           Authorization: token || '',
         },
@@ -177,7 +177,7 @@ export default function FriendsPage() {
   const handleSendRequest = async (userId: string) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:3001/friend/friend-requset/${userId}`, {
+      const response = await fetch(`https://socialgaming-production.up.railway.app/friend/friend-requset/${userId}`, {
         method: 'PUT',
         headers: {
           Authorization: token || '',
@@ -189,8 +189,8 @@ export default function FriendsPage() {
           title: 'Success',
           description: 'Friend request sent successfully',
         });
-        setSuggestions(prev => prev.map(suggestion => 
-          suggestion.userDetails._id === userId 
+        setSuggestions(prev => prev.map(suggestion =>
+          suggestion.userDetails._id === userId
             ? { ...suggestion, pending: true, senderId: getUserId() }
             : suggestion
         ));
@@ -207,7 +207,7 @@ export default function FriendsPage() {
   const handleCancelRequest = async (userId: string) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:3001/friend/cancel-requset/${userId}`, {
+      const response = await fetch(`https://socialgaming-production.up.railway.app/friend/cancel-requset/${userId}`, {
         method: 'DELETE',
         headers: {
           Authorization: token || '',
@@ -219,8 +219,8 @@ export default function FriendsPage() {
           title: 'Success',
           description: 'Friend request cancelled successfully',
         });
-        setSuggestions(prev => prev.map(suggestion => 
-          suggestion.userDetails._id === userId 
+        setSuggestions(prev => prev.map(suggestion =>
+          suggestion.userDetails._id === userId
             ? { ...suggestion, pending: false, senderId: undefined }
             : suggestion
         ));
@@ -237,7 +237,7 @@ export default function FriendsPage() {
   const handleRequestResponse = async (userId: string, status: 'confirmReq' | 'delete') => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:3001/friend/confirm-delete?profile_id=${userId}&status=${status}`, {
+      const response = await fetch(`https://socialgaming-production.up.railway.app/friend/confirm-delete?profile_id=${userId}&status=${status}`, {
         method: 'PUT',
         headers: {
           Authorization: token || '',
@@ -249,9 +249,9 @@ export default function FriendsPage() {
           title: 'Success',
           description: status === 'confirmReq' ? 'Friend request accepted' : 'Friend request declined',
         });
-        
+
         setFriendRequests(prev => prev.filter(request => request.friendsReq._id !== userId));
-        
+
         if (status === 'confirmReq') {
           fetchFriends();
           setSuggestions(prev => prev.filter(suggestion => suggestion.userDetails._id !== userId));
@@ -269,7 +269,7 @@ export default function FriendsPage() {
   const handleBlock = async (userId: string) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:3001/friend/block-user/${userId}`, {
+      const response = await fetch(`https://socialgaming-production.up.railway.app/friend/block-user/${userId}`, {
         method: 'DELETE',
         headers: {
           Authorization: token || '',

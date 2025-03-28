@@ -84,7 +84,7 @@ export default function CreatePost({ onPostCreated }: CreatePostProps) {
       });
 
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:3001/post', {
+      const response = await fetch('https://socialgaming-production.up.railway.app/post', {
         method: 'POST',
         headers: {
           'Authorization': token || '',

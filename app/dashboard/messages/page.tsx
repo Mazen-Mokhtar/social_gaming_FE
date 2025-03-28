@@ -91,7 +91,7 @@ export default function MessagesPage() {
   const fetchConversations = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:3001/message/conversations', {
+      const response = await fetch('https://socialgaming-production.up.railway.app/message/conversations', {
         headers: {
           Authorization: token || '',
         },
@@ -108,7 +108,7 @@ export default function MessagesPage() {
   const fetchChatMessages = async (chatId: string) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:3001/message/chat/${chatId}`, {
+      const response = await fetch(`https://socialgaming-production.up.railway.app/message/chat/${chatId}`, {
         headers: {
           Authorization: token || '',
         },
@@ -135,7 +135,7 @@ export default function MessagesPage() {
       setLoading(true);
       const token = localStorage.getItem('token');
 
-      const userResponse = await fetch(`http://localhost:3001/users/user/${userId}`, {
+      const userResponse = await fetch(`https://socialgaming-production.up.railway.app/users/user/${userId}`, {
         headers: {
           Authorization: token || '',
         },

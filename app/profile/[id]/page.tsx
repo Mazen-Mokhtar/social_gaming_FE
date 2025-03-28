@@ -81,7 +81,7 @@ export default function UserProfilePage() {
     const fetchUserProfile = async () => {
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`http://localhost:3001/users/user/${id}`, {
+            const response = await fetch(`https://socialgaming-production.up.railway.app/users/user/${id}`, {
                 headers: {
                     'Authorization': token || '',
                 },
@@ -123,7 +123,7 @@ export default function UserProfilePage() {
     const fetchMutualFriends = async () => {
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`http://localhost:3001/friend/mutual-friends/${id}`, {
+            const response = await fetch(`https://socialgaming-production.up.railway.app/friend/mutual-friends/${id}`, {
                 headers: {
                     'Authorization': token || '',
                 },
@@ -141,7 +141,7 @@ export default function UserProfilePage() {
     const fetchUserPosts = async () => {
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`http://localhost:3001/post/user-posts-id/${id}`, {
+            const response = await fetch(`https://socialgaming-production.up.railway.app/post/user-posts-id/${id}`, {
                 headers: {
                     'Authorization': token || '',
                 },
@@ -175,7 +175,7 @@ export default function UserProfilePage() {
             formData.append('attachment', file);
 
             const token = localStorage.getItem('token');
-            const response = await fetch('http://localhost:3001/users/updateImage', {
+            const response = await fetch('https://socialgaming-production.up.railway.app/users/updateImage', {
                 method: 'PATCH',
                 headers: {
                     'Authorization': token || '',
@@ -207,7 +207,7 @@ export default function UserProfilePage() {
     const handleConfirmRequest = async () => {
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`http://localhost:3001/friend/confirm-delete?profile_id=${id}&status=confirmReq`, {
+            const response = await fetch(`https://socialgaming-production.up.railway.app/friend/confirm-delete?profile_id=${id}&status=confirmReq`, {
                 method: 'PUT',
                 headers: {
                     'Authorization': token || '',
@@ -233,7 +233,7 @@ export default function UserProfilePage() {
     const handleBlock = async () => {
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`http://localhost:3001/friend/block-user/${id}`, {
+            const response = await fetch(`https://socialgaming-production.up.railway.app/friend/block-user/${id}`, {
                 method: 'DELETE',
                 headers: {
                     'Authorization': token || '',
@@ -259,7 +259,7 @@ export default function UserProfilePage() {
     const handleAddFriend = async () => {
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`http://localhost:3001/friend/friend-requset/${id}`, {
+            const response = await fetch(`https://socialgaming-production.up.railway.app/friend/friend-requset/${id}`, {
                 method: 'PUT',
                 headers: {
                     'Authorization': token || '',
@@ -285,7 +285,7 @@ export default function UserProfilePage() {
     const handleCancelRequest = async () => {
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`http://localhost:3001/friend/cancel-requset/${id}`, {
+            const response = await fetch(`https://socialgaming-production.up.railway.app/friend/cancel-requset/${id}`, {
                 method: 'DELETE',
                 headers: {
                     'Authorization': token || '',
@@ -311,7 +311,7 @@ export default function UserProfilePage() {
     const handleUnfriend = async () => {
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`http://localhost:3001/friend/cancel-friend/${id}`, {
+            const response = await fetch(`https://socialgaming-production.up.railway.app/friend/cancel-friend/${id}`, {
                 method: 'DELETE',
                 headers: {
                     'Authorization': token || '',

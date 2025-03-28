@@ -55,7 +55,7 @@ export default function NotificationsPage() {
   const fetchNotifications = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:3001/notification', {
+      const response = await fetch('https://socialgaming-production.up.railway.app/notification', {
         headers: {
           Authorization: token || '',
         },
@@ -92,7 +92,7 @@ export default function NotificationsPage() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:3001/post/details/${notification.post}`, {
+      const response = await fetch(`https://socialgaming-production.up.railway.app/post/details/${notification.post}`, {
         headers: {
           Authorization: token || '',
         },

@@ -104,7 +104,7 @@ export default function PostDetailsPage() {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:3001/post/details/${id}?page=${page}`, {
+      const response = await fetch(`https://socialgaming-production.up.railway.app/post/details/${id}?page=${page}`, {
         headers: {
           Authorization: token || '',
         },
@@ -179,7 +179,7 @@ export default function PostDetailsPage() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:3001/post/likeUnLike-post/${post._id}`, {
+      const response = await fetch(`https://socialgaming-production.up.railway.app/post/likeUnLike-post/${post._id}`, {
         method: 'POST',
         headers: {
           'Authorization': token || '',
