@@ -12,7 +12,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useChat } from '@/hooks/use-chat';
 import { Message, setCurrentChat } from '@/lib/websocket';
-
+import { Suspense } from 'react';
 interface User {
   _id: string;
   userName: string;
@@ -35,7 +35,7 @@ interface Conversation {
   userDetails: User;
 }
 
-export default function MessagesPage() {
+function MessagesContent() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentChat, setCurrentChatState] = useState<string | null>(null);
@@ -371,7 +371,7 @@ export default function MessagesPage() {
               </div>
             )}
 
-            <div 
+            <div
               ref={messagesContainerRef}
               className="absolute inset-0 bottom-[140px] overflow-y-auto flex flex-col p-4 mt-16"
             >
@@ -379,7 +379,7 @@ export default function MessagesPage() {
                 const currentUserId = getCurrentUserId();
                 const isMe = message.senderId._id === currentUserId;
                 const isLiked = message.likes?.includes(currentChat || '');
-                
+
                 return (
                   <div
                     key={message._id}
@@ -394,7 +394,7 @@ export default function MessagesPage() {
                         className={`max-w-md ${isMe
                           ? 'bg-purple-600 text-white rounded-l-lg rounded-tr-lg'
                           : 'bg-[#2a2a2a] text-white rounded-r-lg rounded-tl-lg'
-                        } p-3`}
+                          } p-3`}
                       >
                         {message.content && <p className="mb-1">{message.content}</p>}
                         {message.attachment && message.attachment.length > 0 && (
@@ -506,5 +506,13 @@ export default function MessagesPage() {
         )}
       </div>
     </main>
+  );
+}
+
+export default function MessagesPage() {
+  return (
+    <Suspense fallback={<div>Loading messages...</div>}>
+      <MessagesContent />
+    </Suspense>
   );
 }
