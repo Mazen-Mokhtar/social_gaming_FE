@@ -189,11 +189,13 @@ export default function FriendsPage() {
           title: 'Success',
           description: 'Friend request sent successfully',
         });
-        setSuggestions(prev => prev.map(suggestion =>
-          suggestion.userDetails._id === userId
-            ? { ...suggestion, pending: true, senderId: getUserId() }
-            : suggestion
-        ));
+        setSuggestions(prev =>
+          prev.map(suggestion =>
+            suggestion.userDetails._id === userId
+              ? { ...suggestion, pending: true, senderId: getUserId() } as FriendSuggestion
+              : suggestion
+          )
+        );
       }
     } catch (error: any) {
       toast({
