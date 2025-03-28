@@ -1,0 +1,38 @@
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+
+export function middleware(request: NextRequest) {
+  // Skip middleware for static files and API routes
+  if (
+    request.nextUrl.pathname.startsWith('/_next') ||
+    request.nextUrl.pathname.startsWith('/api')
+  ) {
+    return NextResponse.next();
+  }
+
+  const token = request.cookies.get('token')?.value;
+  const isAuthPage = request.nextUrl.pathname.startsWith('/auth');
+  const isHomePage = request.nextUrl.pathname === '/';
+
+  // If user is not logged in
+  if (!token) {
+    // Allow access to auth pages and home page
+    if (isAuthPage || isHomePage) {
+      return NextResponse.next();
+    }
+    // Redirect to login for all other pages
+    return NextResponse.redirect(new URL('/auth/login', request.url));
+  }
+
+  // If user is logged in
+  if (token && (isAuthPage || isHomePage)) {
+    // Redirect to dashboard if trying to access auth pages or home
+    return NextResponse.redirect(new URL('/dashboard', request.url));
+  }
+
+  return NextResponse.next();
+}
+
+export const config = {
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
+};
