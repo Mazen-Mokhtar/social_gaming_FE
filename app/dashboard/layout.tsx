@@ -10,7 +10,8 @@ import {
   MessageSquare, 
   LogOut,
   Menu,
-  X
+  X,
+  Settings
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -80,6 +81,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       count: notificationCount 
     },
     { icon: MessageSquare, label: 'Messages', href: '/dashboard/messages' },
+    { icon: Settings, label: 'Settings', href: '/dashboard/settings' },
   ];
 
   const renderNavItem = (item: any) => (

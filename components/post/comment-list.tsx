@@ -20,20 +20,13 @@ interface Comment {
         profileImage?: { secure_url: string };
         verification?: boolean;
     };
-    likes: Array<{
-        _id: string;
-        userName: string;
-        profileImage?: { secure_url: string };
-    }>;
+    likes: string[];
     likeCount: number;
     replyCount: number;
     createdAt: string;
     replies?: Comment[];
-    perentComment?: string;
+    parentId?: string;
     depth?: number;
-    postId: string;
-    isDeleted: boolean;
-    updatedAt: string;
 }
 
 interface CommentListProps {
@@ -42,7 +35,7 @@ interface CommentListProps {
     initialComments?: Comment[];
 }
 
-const MAX_REPLY_DEPTH = 3;
+const MAX_DEPTH = 3; // Maximum nesting depth for replies
 
 const getUserIdFromToken = () => {
     const token = localStorage.getItem('token');
@@ -59,30 +52,28 @@ const getUserIdFromToken = () => {
 };
 
 export default function CommentList({ postId, onCommentAdded, initialComments = [] }: CommentListProps) {
-    const [comments, setComments] = useState<Comment[]>([]);
+    const [comments, setComments] = useState<Comment[]>(initialComments);
     const [loading, setLoading] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
     const [replyingTo, setReplyingTo] = useState<string | null>(null);
     const [showReplies, setShowReplies] = useState<{ [key: string]: boolean }>({});
-    const [loadingReplies, setLoadingReplies] = useState<{ [key: string]: boolean }>({});
     const [localLikes, setLocalLikes] = useState<{ [key: string]: { isLiked: boolean; count: number } }>({});
     const { toast } = useToast();
     const userId = getUserIdFromToken();
 
     const initializeLocalLikes = (commentsToInit: Comment[]) => {
         const newLikes = commentsToInit.reduce((acc: any, comment: Comment) => {
-            const likes = Array.isArray(comment.likes) ? comment.likes : [];
-            const isLiked = likes.some(like =>
+            const isLiked = comment?.likes?.some(like =>
                 typeof like === 'string'
                     ? like === userId
-                    : (like as any)._id === userId
-            );
+                    : (like as any)?._id === userId
+            ) || false;
 
             acc[comment._id] = {
                 isLiked,
-                count: comment.likeCount || likes.length || 0,
+                count: comment.likeCount || comment.likes?.length || 0,
             };
             return acc;
         }, {});
@@ -106,8 +97,9 @@ export default function CommentList({ postId, onCommentAdded, initialComments = 
 
             const normalizedComments = data.data.map((comment: Comment) => ({
                 ...comment,
-                likes: Array.isArray(comment.likes) ? comment.likes : [],
                 replies: comment.replies || [],
+                likes: comment.likes || [],
+                likeCount: comment.likeCount || 0,
                 depth: 0,
             }));
 
@@ -138,7 +130,7 @@ export default function CommentList({ postId, onCommentAdded, initialComments = 
 
     useEffect(() => {
         if (initialComments.length > 0) {
-            const filteredComments = initialComments.filter(comment => !comment.perentComment);
+            const filteredComments = initialComments.filter(comment => !comment.parentId);
             setComments(filteredComments);
             initializeLocalLikes(filteredComments);
             setLoading(false);
@@ -149,7 +141,7 @@ export default function CommentList({ postId, onCommentAdded, initialComments = 
 
     useEffect(() => {
         if (initialComments.length > 0) {
-            const filteredNewComments = initialComments.filter(comment => !comment.perentComment);
+            const filteredNewComments = initialComments.filter(comment => !comment.parentId);
             setComments(prev => {
                 const existingIds = new Set(prev.map(c => c._id));
                 const uniqueNewComments = filteredNewComments.filter(c => !existingIds.has(c._id));
@@ -200,34 +192,45 @@ export default function CommentList({ postId, onCommentAdded, initialComments = 
                 },
             }));
 
-            const updateCommentLikes = (comments: Comment[]): Comment[] => {
-                return comments.map(comment => {
-                    if (comment._id === commentId) {
-                        const currentLikes = Array.isArray(comment.likes) ? comment.likes : [];
-                        const newLikes = currentLikeState.isLiked
-                            ? currentLikes.filter(like =>
-                                typeof like === 'string'
-                                    ? like !== userId
-                                    : (like as any)._id !== userId
-                            )
-                            : [...currentLikes, userId];
-                        return {
-                            ...comment,
-                            likes: newLikes,
-                            likeCount: data.likeCount
-                        };
-                    }
-                    if (comment.replies) {
-                        return {
-                            ...comment,
-                            replies: updateCommentLikes(comment.replies)
-                        };
-                    }
-                    return comment;
-                });
-            };
-
-            setComments(prev => updateCommentLikes(prev));
+            setComments(prev => prev.map(comment => {
+                if (comment._id === commentId) {
+                    const newLikes = currentLikeState.isLiked
+                        ? (comment.likes || []).filter(like =>
+                            typeof like === 'string'
+                                ? like !== userId
+                                : (like as any)._id !== userId
+                        )
+                        : [...(comment.likes || []), userId];
+                    return {
+                        ...comment,
+                        likes: newLikes,
+                        likeCount: data.likeCount
+                    };
+                }
+                if (comment.replies) {
+                    return {
+                        ...comment,
+                        replies: comment.replies.map(reply => {
+                            if (reply._id === commentId) {
+                                const newLikes = currentLikeState.isLiked
+                                    ? (reply.likes || []).filter(like =>
+                                        typeof like === 'string'
+                                            ? like !== userId
+                                            : (like as any)._id !== userId
+                                    )
+                                    : [...(reply.likes || []), userId];
+                                return {
+                                    ...reply,
+                                    likes: newLikes,
+                                    likeCount: data.likeCount
+                                };
+                            }
+                            return reply;
+                        })
+                    };
+                }
+                return comment;
+            }));
         } catch (error: any) {
             toast({
                 variant: 'destructive',
@@ -239,7 +242,6 @@ export default function CommentList({ postId, onCommentAdded, initialComments = 
 
     const fetchReplies = async (commentId: string, depth: number = 0) => {
         try {
-            setLoadingReplies(prev => ({ ...prev, [commentId]: true }));
             const token = localStorage.getItem('token');
             const response = await fetch(`https://socialgaming-production.up.railway.app/post/${postId}/comment/replies/${commentId}`, {
                 headers: { 'Authorization': token || '' },
@@ -252,22 +254,20 @@ export default function CommentList({ postId, onCommentAdded, initialComments = 
 
             const repliesWithParent = data.data.map((reply: Comment) => ({
                 ...reply,
-                perentComment: commentId,
+                parentId: commentId,
                 depth: depth + 1,
-                likes: Array.isArray(reply.likes) ? reply.likes : [],
-                replies: reply.replies || [],
+                likes: reply.likes || [],
                 likeCount: reply.likeCount || 0,
-                replyCount: reply.replyCount || 0
             }));
 
             setComments(prevComments => {
                 const updateRepliesInComment = (comments: Comment[]): Comment[] => {
                     return comments.map(comment => {
                         if (comment._id === commentId) {
-                            return { 
-                                ...comment, 
+                            return {
+                                ...comment,
                                 replies: repliesWithParent,
-                                replyCount: repliesWithParent.length 
+                                replyCount: repliesWithParent.length
                             };
                         }
                         if (comment.replies && comment.replies.length > 0) {
@@ -284,65 +284,64 @@ export default function CommentList({ postId, onCommentAdded, initialComments = 
             });
 
             initializeLocalLikes(repliesWithParent);
-
         } catch (error: any) {
             toast({
                 variant: 'destructive',
                 title: 'Error',
                 description: error.message || 'Failed to fetch replies',
             });
-        } finally {
-            setLoadingReplies(prev => ({ ...prev, [commentId]: false }));
         }
     };
 
     const handleNewComment = (newComment: Comment) => {
-        // Only add to main comments list if it's not a reply
-        if (!newComment.perentComment) {
-            setComments(prev => [newComment, ...prev]);
-            initializeLocalLikes([newComment]);
-            onCommentAdded(newComment);
+        if (!newComment.parentId) {
+            const commentWithDefaults = {
+                ...newComment,
+                likes: [],
+                likeCount: 0,
+                depth: 0,
+            };
+            setComments(prev => [commentWithDefaults, ...prev]);
+            initializeLocalLikes([commentWithDefaults]);
+            onCommentAdded(commentWithDefaults);
         }
     };
 
     const handleNewReply = (parentId: string, newReply: Comment, depth: number) => {
-        const replyWithParent = { 
-            ...newReply, 
-            perentComment: parentId,
+        const replyWithParent = {
+            ...newReply,
+            parentId,
             depth,
-            replies: [],
-            replyCount: 0
-        };
-        
-        const updateCommentsWithNewReply = (comments: Comment[]): Comment[] => {
-            return comments.map(comment => {
-                if (comment._id === parentId) {
-                    const updatedReplies = comment.replies ? [replyWithParent, ...comment.replies] : [replyWithParent];
-                    return {
-                        ...comment,
-                        replyCount: (comment.replyCount || 0) + 1,
-                        replies: updatedReplies
-                    };
-                }
-                if (comment.replies) {
-                    return {
-                        ...comment,
-                        replies: updateCommentsWithNewReply(comment.replies)
-                    };
-                }
-                return comment;
-            });
+            likes: [],
+            likeCount: 0,
         };
 
-        setComments(prev => updateCommentsWithNewReply(prev));
+        setComments(prev => {
+            const updateCommentsWithNewReply = (comments: Comment[]): Comment[] => {
+                return comments.map(comment => {
+                    if (comment._id === parentId) {
+                        const updatedReplies = comment.replies ? [replyWithParent, ...comment.replies] : [replyWithParent];
+                        return {
+                            ...comment,
+                            replyCount: (comment.replyCount || 0) + 1,
+                            replies: updatedReplies
+                        };
+                    }
+                    if (comment.replies) {
+                        return {
+                            ...comment,
+                            replies: updateCommentsWithNewReply(comment.replies)
+                        };
+                    }
+                    return comment;
+                });
+            };
+
+            return updateCommentsWithNewReply(prev);
+        });
+
         initializeLocalLikes([replyWithParent]);
-
-        setShowReplies(prev => ({
-            ...prev,
-            [parentId]: true
-        }));
-
-        // Only call onCommentAdded for the reply
+        setShowReplies(prev => ({ ...prev, [parentId]: true }));
         onCommentAdded(replyWithParent);
     };
 
@@ -397,40 +396,45 @@ export default function CommentList({ postId, onCommentAdded, initialComments = 
         const isLiked = localLikes[comment._id]?.isLiked || false;
         const likeCount = localLikes[comment._id]?.count || 0;
         const depth = comment.depth || 0;
-        const canReply = depth < MAX_REPLY_DEPTH;
-        const isLoadingReplies = loadingReplies[comment._id];
+        const canReply = depth < MAX_DEPTH;
+
+        // Calculate indentation based on depth, with a maximum
+        const indentClass = isReply
+            ? `ml-${Math.min(depth * 2, 6)} md:ml-${Math.min(depth * 4, 12)}`
+            : '';
 
         return (
-            <div 
-                key={comment._id} 
-                className={`${isReply ? `ml-${Math.min(depth * 8, 24)} mt-4` : 'mb-6'}`}
-                style={{ marginLeft: isReply ? `${Math.min(depth * 2, 6)}rem` : 0 }}
+            <div
+                key={comment._id}
+                className={`${indentClass} ${isReply ? 'mt-4' : 'mb-6'} max-w-full overflow-hidden`}
             >
-                <div className="flex space-x-4">
+                <div className="flex space-x-2 md:space-x-4">
                     <Link href={`/profile/${comment.senderId._id}`}>
-                        <Avatar className="w-10 h-10">
+                        <Avatar className="w-8 h-8 md:w-10 md:h-10 flex-shrink-0">
                             <AvatarImage src={comment.senderId.profileImage?.secure_url} />
                             <AvatarFallback>{comment.senderId.userName[0]}</AvatarFallback>
                         </Avatar>
                     </Link>
-                    <div className="flex-1">
-                        <div className="bg-[#2a2a2a] rounded-lg p-4">
+                    <div className="flex-1 min-w-0">
+                        <div className="bg-[#2a2a2a] rounded-lg p-3 md:p-4">
                             <div className="flex items-center justify-between mb-2">
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 overflow-hidden">
                                     <Link href={`/profile/${comment.senderId._id}`}>
-                                        <h3 className="font-semibold text-white hover:underline">{comment.senderId.userName}</h3>
+                                        <h3 className="font-semibold text-white hover:underline truncate">
+                                            {comment.senderId.userName}
+                                        </h3>
                                     </Link>
                                     {comment.senderId.verification && (
-                                        <Badge variant="secondary" className="bg-purple-600">
+                                        <Badge variant="secondary" className="bg-purple-600 flex-shrink-0">
                                             <Check className="w-3 h-3" />
                                         </Badge>
                                     )}
                                 </div>
-                                <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white">
+                                <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white flex-shrink-0">
                                     <MoreVertical className="w-4 h-4" />
                                 </Button>
                             </div>
-                            <p className="text-white mb-2">{comment.content}</p>
+                            <p className="text-white mb-2 break-words">{comment.content}</p>
                             {comment.attachment && (
                                 <div className="relative w-full aspect-w-4 aspect-h-3 mb-2">
                                     <img
@@ -441,10 +445,10 @@ export default function CommentList({ postId, onCommentAdded, initialComments = 
                                     />
                                 </div>
                             )}
-                            <p className="text-sm text-gray-400">{formatTimeAgo(comment.createdAt)}</p>
+                            <p className="text-xs md:text-sm text-gray-400">{formatTimeAgo(comment.createdAt)}</p>
                         </div>
 
-                        <div className="flex items-center space-x-4 mt-2">
+                        <div className="flex items-center gap-2 md:gap-4 mt-2">
                             <Button
                                 variant="ghost"
                                 size="sm"
@@ -473,22 +477,15 @@ export default function CommentList({ postId, onCommentAdded, initialComments = 
                                     size="sm"
                                     className={`text-gray-400 hover:text-purple-400 ${showReplies[comment._id] ? 'text-purple-400' : ''}`}
                                     onClick={() => toggleReplies(comment._id, depth)}
-                                    disabled={isLoadingReplies}
                                 >
                                     <MessageCircle className="w-4 h-4 mr-1" />
-                                    {isLoadingReplies ? (
-                                        'Loading...'
-                                    ) : showReplies[comment._id] ? (
-                                        'Hide Replies'
-                                    ) : (
-                                        `${comment.replyCount} Replies`
-                                    )}
+                                    {showReplies[comment._id] ? 'Hide' : `${comment.replyCount}`}
                                 </Button>
                             )}
                         </div>
 
                         {replyingTo === comment._id && (
-                            <div className="mt-4">
+                            <div className="mt-4 max-w-full">
                                 <CommentForm
                                     postId={postId}
                                     parentId={comment._id}
@@ -496,7 +493,6 @@ export default function CommentList({ postId, onCommentAdded, initialComments = 
                                         handleNewReply(comment._id, newReply, depth + 1);
                                         setReplyingTo(null);
                                     }}
-                                    className="ml-12"
                                 />
                             </div>
                         )}
