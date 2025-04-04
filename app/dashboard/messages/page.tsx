@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useChat } from '@/hooks/use-chat';
-import { Message, setCurrentChat } from '@/lib/websocket';
+import { Message, setCurrentChat, getUserIdFromToken } from '@/lib/websocket';
 import { Suspense } from 'react';
 
 interface User {
@@ -51,6 +51,7 @@ function MessagesContent() {
   const [typingTimeout, setTypingTimeout] = useState<NodeJS.Timeout | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const conversationsCache = useRef<{ [key: string]: Message[] }>({});
   const { toast } = useToast();
   const searchParams = useSearchParams();
@@ -70,6 +71,12 @@ function MessagesContent() {
     onTypingStatus: (isTyping) => setIsTyping(isTyping),
   });
 
+  const scrollToBottom = () => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   useEffect(() => {
     if (!isConnected) return;
     fetchConversations();
@@ -87,7 +94,7 @@ function MessagesContent() {
 
   useEffect(() => {
     if (messagesContainerRef.current && messages.length > 0) {
-      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+      scrollToBottom();
     }
   }, [messages]);
 
@@ -105,7 +112,6 @@ function MessagesContent() {
       if (data.success) {
         setConversations(data.data);
         
-        // If no specific user is selected and we have conversations, select the first one
         if (!currentChat && data.data.length > 0 && !userId) {
           const firstConversation = data.data[0];
           handleUserChat(firstConversation.userDetails._id);
@@ -163,7 +169,6 @@ function MessagesContent() {
       setLoadingChat(true);
       const token = localStorage.getItem('token');
 
-      // Get user details
       const userResponse = await fetch(`https://socialgaming-production.up.railway.app/users/user/${userId}`, {
         headers: {
           Authorization: token || '',
@@ -205,12 +210,9 @@ function MessagesContent() {
         ];
       }
 
-      if (messagesContainerRef.current) {
-        messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
-      }
+      setTimeout(scrollToBottom, 100);
     }
 
-    // Update conversations list to show latest message
     setConversations(prev => {
       const updatedConversations = [...prev];
       const conversationIndex = updatedConversations.findIndex(
@@ -235,7 +237,6 @@ function MessagesContent() {
           },
         };
         
-        // Move this conversation to the top
         const [conversation] = updatedConversations.splice(conversationIndex, 1);
         updatedConversations.unshift(conversation);
       }
@@ -463,7 +464,7 @@ function MessagesContent() {
 
             <div
               ref={messagesContainerRef}
-              className="absolute inset-0 bottom-[140px] overflow-y-auto flex flex-col-reverse p-4 mt-16"
+              className="absolute inset-0 bottom-[140px] overflow-y-auto flex flex-col p-4 mt-16"
             >
               {loadingChat ? (
                 <div className="flex items-center justify-center h-full">
@@ -476,62 +477,65 @@ function MessagesContent() {
                   <p className="text-gray-400">Start the conversation by sending a message!</p>
                 </div>
               ) : (
-                messages.map((message) => {
-                  const currentUserId = getCurrentUserId();
-                  const isMe = message.senderId._id === currentUserId;
-                  const isLiked = message.likes?.includes(currentChat || '');
+                <>
+                  {messages.map((message) => {
+                    const currentUserId = getCurrentUserId();
+                    const isMe = message.senderId._id === currentUserId;
+                    const isLiked = message.likes?.includes(currentChat || '');
 
-                  return (
-                    <div
-                      key={message._id}
-                      className={`flex mb-4 ${isMe ? 'justify-end' : 'justify-start'}`}
-                    >
-                      <div className={`flex ${isMe ? 'flex-row-reverse' : 'flex-row'} items-end gap-2`}>
-                        <Avatar className="w-8 h-8">
-                          <AvatarImage src={message.senderId?.profileImage?.secure_url} />
-                          <AvatarFallback>{message.senderId?.userName?.[0] || "U"}</AvatarFallback>
-                        </Avatar>
-                        <div
-                          className={`max-w-md ${isMe
-                            ? 'bg-purple-600 text-white rounded-l-lg rounded-tr-lg'
-                            : 'bg-[#2a2a2a] text-white rounded-r-lg rounded-tl-lg'
-                            } p-3`}
-                        >
-                          {message.content && <p className="mb-1">{message.content}</p>}
-                          {message.attachment && message.attachment.length > 0 && (
-                            <div className="grid grid-cols-2 gap-2 mt-2">
-                              {message.attachment.map((img, index) => (
-                                <div key={index} className="relative w-full aspect-w-1 aspect-h-1">
-                                  <img
-                                    src={img.secure_url}
-                                    alt="Attachment"
-                                    className="rounded-lg w-full h-full object-cover"
-                                  />
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                          <div className="flex items-center justify-between mt-2 text-xs opacity-70">
-                            <span>{formatTime(message.createdAt)}</span>
-                            <div className="flex items-center gap-2">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className={`p-0 h-auto ${isLiked ? 'text-red-400' : 'text-gray-400'}`}
-                                onClick={() => likeMessage(message._id)}
-                              >
-                                <Heart className={`w-4 h-4 ${isLiked ? 'fill-current' : ''}`} />
-                              </Button>
-                              {message.likes?.length > 0 && (
-                                <span>{message.likes.length}</span>
-                              )}
+                    return (
+                      <div
+                        key={message._id}
+                        className={`flex mb-4 ${isMe ? 'justify-end' : 'justify-start'}`}
+                      >
+                        <div className={`flex ${isMe ? 'flex-row-reverse' : 'flex-row'} items-end gap-2`}>
+                          <Avatar className="w-8 h-8">
+                            <AvatarImage src={message.senderId?.profileImage?.secure_url} />
+                            <AvatarFallback>{message.senderId?.userName?.[0] || "U"}</AvatarFallback>
+                          </Avatar>
+                          <div
+                            className={`max-w-md ${isMe
+                              ? 'bg-purple-600 text-white rounded-l-lg rounded-tr-lg'
+                              : 'bg-[#2a2a2a] text-white rounded-r-lg rounded-tl-lg'
+                              } p-3`}
+                          >
+                            {message.content && <p className="mb-1">{message.content}</p>}
+                            {message.attachment && message.attachment.length > 0 && (
+                              <div className="grid grid-cols-2 gap-2 mt-2">
+                                {message.attachment.map((img, index) => (
+                                  <div key={index} className="relative w-full aspect-w-1 aspect-h-1">
+                                    <img
+                                      src={img.secure_url}
+                                      alt="Attachment"
+                                      className="rounded-lg w-full h-full object-cover"
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            <div className="flex items-center justify-between mt-2 text-xs opacity-70">
+                              <span>{formatTime(message.createdAt)}</span>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className={`p-0 h-auto ${isLiked ? 'text-red-400' : 'text-gray-400'}`}
+                                  onClick={() => likeMessage(message._id)}
+                                >
+                                  <Heart className={`w-4 h-4 ${isLiked ? 'fill-current' : ''}`} />
+                                </Button>
+                                {message.likes?.length > 0 && (
+                                  <span>{message.likes.length}</span>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })
+                    );
+                  })}
+                  <div ref={messagesEndRef} />
+                </>
               )}
             </div>
 
