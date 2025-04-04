@@ -38,6 +38,13 @@ interface TokenPayload {
   userId: string;
 }
 
+interface LoadingStates {
+  [key: string]: {
+    action: string;
+    loading: boolean;
+  };
+}
+
 export default function FriendsPage() {
   const [friends, setFriends] = useState<User[]>([]);
   const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
@@ -45,6 +52,7 @@ export default function FriendsPage() {
   const [searchResults, setSearchResults] = useState<User[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
+  const [loadingStates, setLoadingStates] = useState<LoadingStates>({});
   const { toast } = useToast();
 
   const getUserId = (): string | undefined => {
@@ -64,6 +72,17 @@ export default function FriendsPage() {
     fetchFriendRequests();
     fetchSuggestions();
   }, []);
+
+  const setButtonLoading = (userId: string, action: string, isLoading: boolean) => {
+    setLoadingStates(prev => ({
+      ...prev,
+      [userId]: { action, loading: isLoading }
+    }));
+  };
+
+  const isButtonLoading = (userId: string, action: string) => {
+    return loadingStates[userId]?.action === action && loadingStates[userId]?.loading;
+  };
 
   const fetchFriends = async () => {
     try {
@@ -87,7 +106,10 @@ export default function FriendsPage() {
   };
 
   const handleCancelFriendship = async (userId: string) => {
+    if (isButtonLoading(userId, 'unfriend')) return;
+
     try {
+      setButtonLoading(userId, 'unfriend', true);
       const token = localStorage.getItem('token');
       const response = await fetch(`https://socialgaming-production.up.railway.app/friend/cancel-friend/${userId}`, {
         method: 'DELETE',
@@ -101,7 +123,6 @@ export default function FriendsPage() {
           title: 'Success',
           description: data.message,
         });
-        // Remove the unfriended user from both friends list and search results
         setFriends(prev => prev.filter(friend => friend._id !== userId));
         setSearchResults(prev => prev.filter(result => result._id !== userId));
       }
@@ -111,6 +132,8 @@ export default function FriendsPage() {
         title: 'Error',
         description: 'Failed to cancel friendship',
       });
+    } finally {
+      setButtonLoading(userId, 'unfriend', false);
     }
   };
 
@@ -175,7 +198,10 @@ export default function FriendsPage() {
   };
 
   const handleSendRequest = async (userId: string) => {
+    if (isButtonLoading(userId, 'send')) return;
+
     try {
+      setButtonLoading(userId, 'send', true);
       const token = localStorage.getItem('token');
       const response = await fetch(`https://socialgaming-production.up.railway.app/friend/friend-requset/${userId}`, {
         method: 'PUT',
@@ -203,11 +229,16 @@ export default function FriendsPage() {
         title: 'Error',
         description: error.response?.data?.message || 'Failed to send friend request',
       });
+    } finally {
+      setButtonLoading(userId, 'send', false);
     }
   };
 
   const handleCancelRequest = async (userId: string) => {
+    if (isButtonLoading(userId, 'cancel')) return;
+
     try {
+      setButtonLoading(userId, 'cancel', true);
       const token = localStorage.getItem('token');
       const response = await fetch(`https://socialgaming-production.up.railway.app/friend/cancel-requset/${userId}`, {
         method: 'DELETE',
@@ -233,11 +264,16 @@ export default function FriendsPage() {
         title: 'Error',
         description: error.response?.data?.message || 'Failed to cancel friend request',
       });
+    } finally {
+      setButtonLoading(userId, 'cancel', false);
     }
   };
 
   const handleRequestResponse = async (userId: string, status: 'confirmReq' | 'delete') => {
+    if (isButtonLoading(userId, status)) return;
+
     try {
+      setButtonLoading(userId, status, true);
       const token = localStorage.getItem('token');
       const response = await fetch(`https://socialgaming-production.up.railway.app/friend/confirm-delete?profile_id=${userId}&status=${status}`, {
         method: 'PUT',
@@ -265,11 +301,16 @@ export default function FriendsPage() {
         title: 'Error',
         description: 'Failed to process friend request',
       });
+    } finally {
+      setButtonLoading(userId, status, false);
     }
   };
 
   const handleBlock = async (userId: string) => {
+    if (isButtonLoading(userId, 'block')) return;
+
     try {
+      setButtonLoading(userId, 'block', true);
       const token = localStorage.getItem('token');
       const response = await fetch(`https://socialgaming-production.up.railway.app/friend/block-user/${userId}`, {
         method: 'DELETE',
@@ -291,30 +332,69 @@ export default function FriendsPage() {
         title: 'Error',
         description: 'Failed to block user',
       });
+    } finally {
+      setButtonLoading(userId, 'block', false);
+    }
+  };
+
+  const handleButtonClick = (action: string, buttonId: string) => {
+    const button = document.getElementById(buttonId);
+    if (button) {
+      button.classList.add('animate-shake');
+      setTimeout(() => {
+        button.classList.remove('animate-shake');
+      }, 300);
     }
   };
 
   const renderFriendActionButton = (suggestion: FriendSuggestion) => {
     const currentUserId = getUserId();
+    const buttonId = `friend-button-${suggestion.userDetails._id}`;
+    const userId = suggestion.userDetails._id;
+
     if (suggestion.pending) {
       if (suggestion.senderId === currentUserId) {
         return (
           <Button
+            id={buttonId}
             variant="outline"
-            className="text-yellow-400 hover:text-yellow-300 border-yellow-400/20"
-            onClick={() => handleCancelRequest(suggestion.userDetails._id)}
+            className="text-yellow-400 hover:text-yellow-300 border-yellow-400/20 button-hover-effect"
+            onClick={() => {
+              handleButtonClick('cancel', buttonId);
+              handleCancelRequest(userId);
+            }}
+            disabled={isButtonLoading(userId, 'cancel')}
           >
-            Cancel Request
+            {isButtonLoading(userId, 'cancel') ? (
+              'Cancelling...'
+            ) : (
+              <>
+                <UserX className="w-4 h-4 mr-2" />
+                Cancel Request
+              </>
+            )}
           </Button>
         );
       } else {
         return (
           <Button
+            id={buttonId}
             variant="default"
-            className="bg-purple-600 hover:bg-purple-700"
-            onClick={() => handleRequestResponse(suggestion.userDetails._id, 'confirmReq')}
+            className="bg-purple-600 hover:bg-purple-700 button-hover-glow"
+            onClick={() => {
+              handleButtonClick('confirm', buttonId);
+              handleRequestResponse(userId, 'confirmReq');
+            }}
+            disabled={isButtonLoading(userId, 'confirmReq')}
           >
-            Confirm Request
+            {isButtonLoading(userId, 'confirmReq') ? (
+              'Confirming...'
+            ) : (
+              <>
+                <Check className="w-4 h-4 mr-2" />
+                Confirm Request
+              </>
+            )}
           </Button>
         );
       }
@@ -322,11 +402,23 @@ export default function FriendsPage() {
 
     return (
       <Button
+        id={buttonId}
         variant="default"
-        className="bg-purple-600 hover:bg-purple-700"
-        onClick={() => handleSendRequest(suggestion.userDetails._id)}
+        className="bg-purple-600 hover:bg-purple-700 button-hover-glow"
+        onClick={() => {
+          handleButtonClick('add', buttonId);
+          handleSendRequest(userId);
+        }}
+        disabled={isButtonLoading(userId, 'send')}
       >
-        Add Friend
+        {isButtonLoading(userId, 'send') ? (
+          'Sending...'
+        ) : (
+          <>
+            <UserPlus className="w-4 h-4 mr-2" />
+            Add Friend
+          </>
+        )}
       </Button>
     );
   };
@@ -356,7 +448,7 @@ export default function FriendsPage() {
         <TabsContent value="friends" className="mt-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {friends.map((friend) => (
-              <Card key={friend._id} className="p-4 bg-[#1a1a1a] border-purple-500/20">
+              <Card key={friend._id} className="p-4 bg-[#1a1a1a] border-purple-500/20 animate-slide-up">
                 <div className="flex items-center justify-between">
                   <Link href={`/profile/${friend._id}`} className="flex items-center space-x-4 hover:opacity-80">
                     <Avatar>
@@ -377,18 +469,28 @@ export default function FriendsPage() {
                   </Link>
                   <div className="flex space-x-2">
                     <Button
+                      id={`friend-action-${friend._id}-unfriend`}
                       variant="ghost"
                       size="icon"
-                      className="text-yellow-400 hover:text-yellow-300 hover:bg-yellow-500/10"
-                      onClick={() => handleCancelFriendship(friend._id)}
+                      className="text-yellow-400 hover:text-yellow-300 hover:bg-yellow-500/10 button-hover-effect"
+                      onClick={() => {
+                        handleButtonClick('unfriend', `friend-action-${friend._id}-unfriend`);
+                        handleCancelFriendship(friend._id);
+                      }}
+                      disabled={isButtonLoading(friend._id, 'unfriend')}
                     >
                       <UserMinus className="w-5 h-5" />
                     </Button>
                     <Button
+                      id={`friend-action-${friend._id}-block`}
                       variant="ghost"
                       size="icon"
-                      className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                      onClick={() => handleBlock(friend._id)}
+                      className="text-red-400 hover:text-red-300 hover:bg-red-500/10 button-hover-effect"
+                      onClick={() => {
+                        handleButtonClick('block', `friend-action-${friend._id}-block`);
+                        handleBlock(friend._id);
+                      }}
+                      disabled={isButtonLoading(friend._id, 'block')}
                     >
                       <Shield className="w-5 h-5" />
                     </Button>
@@ -426,15 +528,17 @@ export default function FriendsPage() {
                       variant="default"
                       className="bg-purple-600 hover:bg-purple-700"
                       onClick={() => handleRequestResponse(request.friendsReq._id, 'confirmReq')}
+                      disabled={isButtonLoading(request.friendsReq._id, 'confirmReq')}
                     >
-                      Accept
+                      {isButtonLoading(request.friendsReq._id, 'confirmReq') ? 'Accepting...' : 'Accept'}
                     </Button>
                     <Button
                       variant="ghost"
                       className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
                       onClick={() => handleRequestResponse(request.friendsReq._id, 'delete')}
+                      disabled={isButtonLoading(request.friendsReq._id, 'delete')}
                     >
-                      Decline
+                      {isButtonLoading(request.friendsReq._id, 'delete') ? 'Declining...' : 'Decline'}
                     </Button>
                   </div>
                 </div>
@@ -519,6 +623,7 @@ export default function FriendsPage() {
                       size="icon"
                       className="text-yellow-400 hover:text-yellow-300 hover:bg-yellow-500/10"
                       onClick={() => handleCancelFriendship(result._id)}
+                      disabled={isButtonLoading(result._id, 'unfriend')}
                     >
                       <UserMinus className="w-5 h-5" />
                     </Button>
@@ -527,6 +632,7 @@ export default function FriendsPage() {
                       size="icon"
                       className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
                       onClick={() => handleBlock(result._id)}
+                      disabled={isButtonLoading(result._id, 'block')}
                     >
                       <Shield className="w-5 h-5" />
                     </Button>

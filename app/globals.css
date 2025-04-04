@@ -72,3 +72,81 @@
   }
 }
 
+@keyframes scale-bounce {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.5); }
+  100% { transform: scale(1); }
+}
+
+.scale-bounce {
+  animation: scale-bounce 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes ping {
+  75%, 100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+.animate-ping {
+  animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+@keyframes ripple {
+  0% {
+    box-shadow: 0 0 0 0 rgba(147, 51, 234, 0.3);
+  }
+  100% {
+    box-shadow: 0 0 0 20px rgba(147, 51, 234, 0);
+  }
+}
+
+.animate-ripple {
+  animation: ripple 0.6s linear;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-2px); }
+  75% { transform: translateX(2px); }
+}
+
+.animate-shake {
+  animation: shake 0.3s ease-in-out;
+}
+
+@keyframes slide-up {
+  0% { transform: translateY(10px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
+}
+
+.button-hover-effect {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.button-hover-effect:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(147, 51, 234, 0.2);
+}
+
+.button-hover-effect:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.button-hover-glow {
+  transition: all 0.3s ease;
+}
+
+.button-hover-glow:hover {
+  box-shadow: 0 0 15px rgba(147, 51, 234, 0.5);
+}
+
+.button-hover-glow:active {
+  box-shadow: 0 0 5px rgba(147, 51, 234, 0.3);
+}

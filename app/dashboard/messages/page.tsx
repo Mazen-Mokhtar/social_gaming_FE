@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Image as ImageIcon, Send, Check, ChevronLeft, ChevronRight, Heart, MessageSquare } from 'lucide-react';
+import { Image as ImageIcon, Send, Check, ChevronLeft, ChevronRight, Heart, MessageSquare, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
@@ -13,6 +13,7 @@ import { useSearchParams } from 'next/navigation';
 import { useChat } from '@/hooks/use-chat';
 import { Message, setCurrentChat } from '@/lib/websocket';
 import { Suspense } from 'react';
+
 interface User {
   _id: string;
   userName: string;
@@ -31,6 +32,7 @@ interface Conversation {
       attachment?: Array<{ secure_url: string }>;
       updatedAt: string;
     };
+    countUnRead: number;
   };
   userDetails: User;
 }
@@ -42,12 +44,14 @@ function MessagesContent() {
   const [currentChatUser, setCurrentChatUser] = useState<User | null>(null);
   const [messageInput, setMessageInput] = useState('');
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadingChat, setLoadingChat] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isTyping, setIsTyping] = useState(false);
   const [typingTimeout, setTypingTimeout] = useState<NodeJS.Timeout | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const conversationsCache = useRef<{ [key: string]: Message[] }>({});
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const userId = searchParams.get('user');
@@ -81,36 +85,54 @@ function MessagesContent() {
     setCurrentChat(currentChat);
   }, [currentChat]);
 
-  // Scroll to bottom whenever messages change
   useEffect(() => {
-    if (messagesContainerRef.current) {
+    if (messagesContainerRef.current && messages.length > 0) {
       messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
     }
   }, [messages]);
 
   const fetchConversations = async () => {
     try {
+      setLoading(true);
       const token = localStorage.getItem('token');
       const response = await fetch('https://socialgaming-production.up.railway.app/message/conversations', {
         headers: {
           Authorization: token || '',
+          'Cache-Control': 'no-cache',
         },
       });
       const data = await response.json();
       if (data.success) {
         setConversations(data.data);
+        
+        // If no specific user is selected and we have conversations, select the first one
+        if (!currentChat && data.data.length > 0 && !userId) {
+          const firstConversation = data.data[0];
+          handleUserChat(firstConversation.userDetails._id);
+        }
       }
     } catch (error) {
       console.error('Error fetching conversations:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
   const fetchChatMessages = async (chatId: string) => {
     try {
+      setLoadingChat(true);
+
+      if (conversationsCache.current[chatId]) {
+        setMessages(conversationsCache.current[chatId]);
+        setLoadingChat(false);
+        return;
+      }
+
       const token = localStorage.getItem('token');
       const response = await fetch(`https://socialgaming-production.up.railway.app/message/chat/${chatId}`, {
         headers: {
           Authorization: token || '',
+          'Cache-Control': 'no-cache',
         },
       });
       const data = await response.json();
@@ -120,6 +142,8 @@ function MessagesContent() {
           ...msg,
           likes: Array.isArray(msg.likes) ? msg.likes : [],
         }));
+        
+        conversationsCache.current[chatId] = normalizedMessages;
         setMessages(normalizedMessages);
       } else {
         setMessages([]);
@@ -127,17 +151,23 @@ function MessagesContent() {
     } catch (error) {
       setMessages([]);
       console.error('Error fetching chat messages:', error);
+    } finally {
+      setLoadingChat(false);
     }
   };
 
   const handleUserChat = async (userId: string) => {
+    if (currentChat === userId) return;
+
     try {
-      setLoading(true);
+      setLoadingChat(true);
       const token = localStorage.getItem('token');
 
+      // Get user details
       const userResponse = await fetch(`https://socialgaming-production.up.railway.app/users/user/${userId}`, {
         headers: {
           Authorization: token || '',
+          'Cache-Control': 'no-cache',
         },
       });
       const userData = await userResponse.json();
@@ -155,7 +185,7 @@ function MessagesContent() {
         description: 'Failed to start chat',
       });
     } finally {
-      setLoading(false);
+      setLoadingChat(false);
     }
   };
 
@@ -167,7 +197,51 @@ function MessagesContent() {
 
     if (message.senderId._id === currentChat || message.resverId._id === currentChat) {
       setMessages(prev => [...prev, normalizedMessage]);
+      
+      if (currentChat) {
+        conversationsCache.current[currentChat] = [
+          ...conversationsCache.current[currentChat] || [],
+          normalizedMessage
+        ];
+      }
+
+      if (messagesContainerRef.current) {
+        messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+      }
     }
+
+    // Update conversations list to show latest message
+    setConversations(prev => {
+      const updatedConversations = [...prev];
+      const conversationIndex = updatedConversations.findIndex(
+        conv => conv.userDetails._id === (
+          message.senderId._id === getUserIdFromToken() 
+            ? message.resverId._id 
+            : message.senderId._id
+        )
+      );
+
+      if (conversationIndex !== -1) {
+        updatedConversations[conversationIndex] = {
+          ...updatedConversations[conversationIndex],
+          conversations: {
+            ...updatedConversations[conversationIndex].conversations,
+            lastMessage: {
+              _id: message._id,
+              content: message.content,
+              attachment: message.attachment,
+              updatedAt: message.createdAt,
+            },
+          },
+        };
+        
+        // Move this conversation to the top
+        const [conversation] = updatedConversations.splice(conversationIndex, 1);
+        updatedConversations.unshift(conversation);
+      }
+
+      return updatedConversations;
+    });
   }
 
   function handleMessageLiked({ messageId, likes }: { messageId: string; likes: string[] }) {
@@ -265,6 +339,17 @@ function MessagesContent() {
     );
   }
 
+  if (loading && !conversations.length) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-[#0f0f0f]">
+        <Card className="p-8 bg-[#1a1a1a] border-purple-500/20 text-center">
+          <Loader2 className="w-12 h-12 text-purple-600 animate-spin mx-auto mb-4" />
+          <p className="text-gray-400">Loading conversations...</p>
+        </Card>
+      </div>
+    );
+  }
+
   if (!conversations.length) {
     return (
       <div className="flex items-center justify-center h-screen bg-[#0f0f0f]">
@@ -329,6 +414,11 @@ function MessagesContent() {
                       <p className="text-sm text-gray-400 truncate">
                         {conv.conversations.lastMessage.content || 'Sent an image'}
                       </p>
+                      {conv.conversations.countUnRead > 0 && (
+                        <Badge className="bg-purple-600">
+                          {conv.conversations.countUnRead}
+                        </Badge>
+                      )}
                     </div>
                   </div>
                 )}
@@ -373,64 +463,76 @@ function MessagesContent() {
 
             <div
               ref={messagesContainerRef}
-              className="absolute inset-0 bottom-[140px] overflow-y-auto flex flex-col p-4 mt-16"
+              className="absolute inset-0 bottom-[140px] overflow-y-auto flex flex-col-reverse p-4 mt-16"
             >
-              {messages.map((message) => {
-                const currentUserId = getCurrentUserId();
-                const isMe = message.senderId._id === currentUserId;
-                const isLiked = message.likes?.includes(currentChat || '');
+              {loadingChat ? (
+                <div className="flex items-center justify-center h-full">
+                  <Loader2 className="w-8 h-8 text-purple-600 animate-spin" />
+                </div>
+              ) : messages.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-center">
+                  <MessageSquare className="w-16 h-16 text-purple-400/50 mb-4" />
+                  <h3 className="text-lg font-semibold text-white mb-2">No Messages Yet</h3>
+                  <p className="text-gray-400">Start the conversation by sending a message!</p>
+                </div>
+              ) : (
+                messages.map((message) => {
+                  const currentUserId = getCurrentUserId();
+                  const isMe = message.senderId._id === currentUserId;
+                  const isLiked = message.likes?.includes(currentChat || '');
 
-                return (
-                  <div
-                    key={message._id}
-                    className={`flex mb-4 ${isMe ? 'justify-end' : 'justify-start'}`}
-                  >
-                    <div className={`flex ${isMe ? 'flex-row-reverse' : 'flex-row'} items-end gap-2`}>
-                      <Avatar className="w-8 h-8">
-                        <AvatarImage src={message.senderId?.profileImage?.secure_url} />
-                        <AvatarFallback>{message.senderId?.userName?.[0] || "U"}</AvatarFallback>
-                      </Avatar>
-                      <div
-                        className={`max-w-md ${isMe
-                          ? 'bg-purple-600 text-white rounded-l-lg rounded-tr-lg'
-                          : 'bg-[#2a2a2a] text-white rounded-r-lg rounded-tl-lg'
-                          } p-3`}
-                      >
-                        {message.content && <p className="mb-1">{message.content}</p>}
-                        {message.attachment && message.attachment.length > 0 && (
-                          <div className="grid grid-cols-2 gap-2 mt-2">
-                            {message.attachment.map((img, index) => (
-                              <div key={index} className="relative w-full aspect-w-1 aspect-h-1">
-                                <img
-                                  src={img.secure_url}
-                                  alt="Attachment"
-                                  className="rounded-lg w-full h-full object-cover"
-                                />
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                        <div className="flex items-center justify-between mt-2 text-xs opacity-70">
-                          <span>{formatTime(message.createdAt)}</span>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className={`p-0 h-auto ${isLiked ? 'text-red-400' : 'text-gray-400'}`}
-                              onClick={() => likeMessage(message._id)}
-                            >
-                              <Heart className={`w-4 h-4 ${isLiked ? 'fill-current' : ''}`} />
-                            </Button>
-                            {message.likes?.length > 0 && (
-                              <span>{message.likes.length}</span>
-                            )}
+                  return (
+                    <div
+                      key={message._id}
+                      className={`flex mb-4 ${isMe ? 'justify-end' : 'justify-start'}`}
+                    >
+                      <div className={`flex ${isMe ? 'flex-row-reverse' : 'flex-row'} items-end gap-2`}>
+                        <Avatar className="w-8 h-8">
+                          <AvatarImage src={message.senderId?.profileImage?.secure_url} />
+                          <AvatarFallback>{message.senderId?.userName?.[0] || "U"}</AvatarFallback>
+                        </Avatar>
+                        <div
+                          className={`max-w-md ${isMe
+                            ? 'bg-purple-600 text-white rounded-l-lg rounded-tr-lg'
+                            : 'bg-[#2a2a2a] text-white rounded-r-lg rounded-tl-lg'
+                            } p-3`}
+                        >
+                          {message.content && <p className="mb-1">{message.content}</p>}
+                          {message.attachment && message.attachment.length > 0 && (
+                            <div className="grid grid-cols-2 gap-2 mt-2">
+                              {message.attachment.map((img, index) => (
+                                <div key={index} className="relative w-full aspect-w-1 aspect-h-1">
+                                  <img
+                                    src={img.secure_url}
+                                    alt="Attachment"
+                                    className="rounded-lg w-full h-full object-cover"
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          <div className="flex items-center justify-between mt-2 text-xs opacity-70">
+                            <span>{formatTime(message.createdAt)}</span>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className={`p-0 h-auto ${isLiked ? 'text-red-400' : 'text-gray-400'}`}
+                                onClick={() => likeMessage(message._id)}
+                              >
+                                <Heart className={`w-4 h-4 ${isLiked ? 'fill-current' : ''}`} />
+                              </Button>
+                              {message.likes?.length > 0 && (
+                                <span>{message.likes.length}</span>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
 
             <div className="absolute bottom-0 left-0 right-0 bg-[#1a1a1a] border-t border-purple-500/20">

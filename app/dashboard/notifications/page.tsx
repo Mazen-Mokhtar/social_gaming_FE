@@ -76,11 +76,13 @@ export default function NotificationsPage() {
   };
 
   const handleNotificationClick = async (notification: Notification) => {
+    // For friend request notifications, redirect to friends page
     if (notification.type === 'friendRequest') {
       router.push('/dashboard/friends');
       return;
     }
 
+    // For other notifications, check if post exists
     if (!notification.post) {
       toast({
         variant: 'destructive',
@@ -99,7 +101,6 @@ export default function NotificationsPage() {
       });
       const data = await response.json();
       if (data.success) {
-        // Navigate to post details page (you'll need to create this page)
         router.push(`/post/${notification.post}`);
       } else {
         throw new Error(data.message || 'Failed to fetch post details');
@@ -161,7 +162,7 @@ export default function NotificationsPage() {
             <Card
               key={notification._id}
               className={`p-4 bg-[#1a1a1a] border-purple-500/20 transition-colors cursor-pointer hover:bg-purple-600/5 ${
-                !notification.isRead ? 'bg-purple-600/5' : ''
+                !notification.isRead ? 'bg-purple-600/5 border-l-4 border-l-purple-600' : ''
               }`}
               onClick={() => handleNotificationClick(notification)}
             >
@@ -185,6 +186,11 @@ export default function NotificationsPage() {
                       </Badge>
                     )}
                     <span className="text-gray-400">{getNotificationIcon(notification.type)}</span>
+                    {!notification.isRead && (
+                      <Badge variant="secondary" className="bg-purple-600">
+                        New
+                      </Badge>
+                    )}
                   </div>
                   <p className="text-gray-300">{notification.message}</p>
                   <p className="text-sm text-gray-400 mt-1">

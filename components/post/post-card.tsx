@@ -63,6 +63,8 @@ export default function PostCard({ post, onPostUpdate }: PostCardProps) {
   const [localLikes, setLocalLikes] = useState({ isLiked: false, count: 0 });
   const [commentCount, setCommentCount] = useState(post.commentCount || 0);
   const [comments, setComments] = useState<any[]>([]);
+  const [isLikeAnimating, setIsLikeAnimating] = useState(false);
+  const [likeScale, setLikeScale] = useState(1);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -90,9 +92,25 @@ export default function PostCard({ post, onPostUpdate }: PostCardProps) {
       return;
     }
 
-    setIsLiking(true);
+    // Optimistic update
+    const previousState = { ...localLikes };
+    setLocalLikes(prev => ({
+      isLiked: !prev.isLiked,
+      count: prev.isLiked ? prev.count - 1 : prev.count + 1
+    }));
+
+    // Trigger animation
+    setIsLikeAnimating(true);
+    setLikeScale(1.5);
+    setTimeout(() => {
+      setLikeScale(1);
+      setTimeout(() => {
+        setIsLikeAnimating(false);
+      }, 300);
+    }, 150);
 
     try {
+      setIsLiking(true);
       const token = localStorage.getItem('token');
       const response = await fetch(`https://socialgaming-production.up.railway.app/post/likeUnLike-post/${post._id}`, {
         method: 'POST',
@@ -103,12 +121,14 @@ export default function PostCard({ post, onPostUpdate }: PostCardProps) {
 
       const data = await response.json();
       if (!data.success) {
+        // Revert optimistic update on failure
+        setLocalLikes(previousState);
         throw new Error(data.message || 'Failed to like post');
       }
 
-      const isNowLiked = !data.message.toLowerCase().includes('unlike');
+      // Update with actual server count
       setLocalLikes({
-        isLiked: isNowLiked,
+        isLiked: !data.message.toLowerCase().includes('unlike'),
         count: data.likeCount,
       });
     } catch (error: any) {
@@ -133,7 +153,6 @@ export default function PostCard({ post, onPostUpdate }: PostCardProps) {
       });
 
       const data = await response.json();
-      console.log(data)
       if (!data.success) {
         throw new Error(data.message || 'Failed to delete post');
       }
@@ -276,14 +295,29 @@ export default function PostCard({ post, onPostUpdate }: PostCardProps) {
         <div className="flex items-center justify-between pt-4 border-t border-purple-500/20">
           <Button
             variant="ghost"
-            className={`text-gray-400 hover:text-purple-400 ${localLikes.isLiked ? 'text-purple-400' : ''}`}
+            className={`text-gray-400 hover:text-purple-400 group relative ${
+              localLikes.isLiked ? 'text-purple-400' : ''
+            }`}
             onClick={handleLike}
             disabled={isLiking}
           >
             <Heart
-              className={`w-5 h-5 mr-2 ${localLikes.isLiked ? 'fill-purple-400 text-purple-400' : ''}`}
+              className={`w-5 h-5 mr-2 transition-all duration-300 transform ${
+                localLikes.isLiked ? 'fill-purple-400 text-purple-400' : ''
+              } ${isLikeAnimating ? 'scale-bounce' : ''}`}
+              style={{
+                transform: `scale(${likeScale})`,
+                transition: 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+              }}
             />
-            {localLikes.count}
+            <span className={`transition-all duration-300 ${
+              isLikeAnimating ? 'transform scale-110' : ''
+            }`}>
+              {localLikes.count}
+            </span>
+            {isLikeAnimating && (
+              <div className="absolute -top-1 -right-1 w-2 h-2 bg-purple-400 rounded-full animate-ping" />
+            )}
           </Button>
           <Button
             variant="ghost"
