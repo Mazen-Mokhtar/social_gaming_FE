@@ -133,7 +133,7 @@ export default function SettingsPage() {
         updateData.password = profileData.password;
         updateData.confirmPassword = confirmPassword;
       }
-
+      console.log({updateData})
       const response = await fetch('https://socialgaming-production.up.railway.app/users/update', {
         method: 'PATCH',
         headers: {
@@ -144,6 +144,7 @@ export default function SettingsPage() {
       });
 
       const data = await response.json();
+      console.log({data})
       if (data.success) {
         toast({
           title: 'Success',

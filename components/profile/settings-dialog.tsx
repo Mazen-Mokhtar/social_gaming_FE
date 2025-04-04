@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,7 +30,7 @@ const profileSchema = z.object({
   userName: z.string()
     .min(2, 'Username must be at least 2 characters')
     .max(20, 'Username must not exceed 20 characters')
-    .regex(/^[a-zA-Z0-9]+$/, 'Username can only contain letters and numbers')
+    .regex(/^[a-zA-Z0-9]+( [a-zA-Z0-9]+)?$/, 'Username can only contain letters, numbers, and one space')
     .optional()
     .or(z.literal('')),
   phone: z.string()
@@ -53,7 +53,6 @@ const profileSchema = z.object({
     .optional()
     .or(z.literal('')),
 }).refine((data) => {
-  // If password is provided, confirmPassword must match
   if (data.password && data.password.length > 0) {
     return data.password === data.confirmPassword;
   }
@@ -68,7 +67,7 @@ type ProfileFormData = z.infer<typeof profileSchema>;
 export default function SettingsDialog({ open, onOpenChange, currentUser }: SettingsDialogProps) {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
-  const { register, handleSubmit, formState: { errors }, watch } = useForm<ProfileFormData>({
+  const { register, handleSubmit, formState: { errors }, watch, reset } = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
       userName: currentUser.userName,
@@ -80,11 +79,21 @@ export default function SettingsDialog({ open, onOpenChange, currentUser }: Sett
     },
   });
 
+  useEffect(() => {
+    reset({
+      userName: currentUser.userName,
+      phone: currentUser.phone,
+      gender: currentUser.gender,
+      DOB: currentUser.DOB,
+      password: '',
+      confirmPassword: '',
+    });
+  }, [currentUser, reset]);
+
   const onSubmit = async (data: ProfileFormData) => {
     try {
       setLoading(true);
 
-      // Remove empty password fields from the request
       const updateData = {
         ...data,
         password: data.password || undefined,
@@ -104,7 +113,7 @@ export default function SettingsDialog({ open, onOpenChange, currentUser }: Sett
       const result = await response.json();
 
       if (!result.success) {
-        console.log({result})
+        console.log({ result })
         throw new Error(result.message || 'Failed to update profile');
       }
 
@@ -118,7 +127,7 @@ export default function SettingsDialog({ open, onOpenChange, currentUser }: Sett
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: error.message || 'Failed to update profile',
+        description: error.message ? error.message.replace(/\s+/g, ' ') : 'Failed to update profile',
       });
     } finally {
       setLoading(false);
@@ -141,6 +150,9 @@ export default function SettingsDialog({ open, onOpenChange, currentUser }: Sett
               {...register('userName')}
               className="bg-[#2a2a2a] border-purple-500/20"
               placeholder="Enter username (2-20 characters, letters and numbers only)"
+              onChange={(e) => {
+                register('userName').onChange(e);
+              }}
             />
             {errors.userName && (
               <p className="text-sm text-red-500">{errors.userName.message}</p>
