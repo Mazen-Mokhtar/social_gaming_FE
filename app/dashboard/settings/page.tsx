@@ -111,6 +111,20 @@ export default function SettingsPage() {
 
   const handleProfileUpdate = async () => {
     try {
+      // Validate userName: only letters, numbers, and single spaces between words
+      if (profileData.userName) {
+        const trimmedUserName = profileData.userName.trim(); // Remove leading/trailing spaces
+        const userNameRegex = /^[a-zA-Z0-9]+( [a-zA-Z0-9]+)*$/; // Single spaces only
+        if (!userNameRegex.test(trimmedUserName)) {
+          toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Username can only contain letters, numbers, and single spaces between words',
+          });
+          return;
+        }
+      }
+  
       if (profileData.password && profileData.password !== confirmPassword) {
         toast({
           variant: 'destructive',
@@ -119,13 +133,12 @@ export default function SettingsPage() {
         });
         return;
       }
-
+  
       setUpdating(true);
       const token = localStorage.getItem('token');
       
-      // Only include fields that have been modified
       const updateData: Partial<ProfileData> = {};
-      if (profileData.userName) updateData.userName = profileData.userName;
+      if (profileData.userName) updateData.userName = profileData.userName.trim(); // Trim before sending
       if (profileData.phone) updateData.phone = profileData.phone;
       if (profileData.gender) updateData.gender = profileData.gender;
       if (profileData.DOB) updateData.DOB = profileData.DOB;
@@ -142,7 +155,7 @@ export default function SettingsPage() {
         },
         body: JSON.stringify(updateData),
       });
-
+  
       const data = await response.json();
       console.log({data})
       if (data.success) {

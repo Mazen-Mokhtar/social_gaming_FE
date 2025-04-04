@@ -30,7 +30,8 @@ const profileSchema = z.object({
   userName: z.string()
     .min(2, 'Username must be at least 2 characters')
     .max(20, 'Username must not exceed 20 characters')
-    .regex(/^[a-zA-Z0-9]+( [a-zA-Z0-9]+)?$/, 'Username can only contain letters, numbers, and one space')
+    .regex(/^[a-zA-Z0-9]+( [a-zA-Z0-9]+)*$/, 'Username can only contain letters, numbers, and single spaces between words')
+    .trim()
     .optional()
     .or(z.literal('')),
   phone: z.string()
